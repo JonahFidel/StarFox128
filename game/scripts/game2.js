@@ -147,17 +147,17 @@ var game = function(){
 		// LIGHT
 		// number one -- start light? 
 		var light = new THREE.DirectionalLight( 0xffffff );
-	    light.position.set( 0, 1, 1 ).normalize();
+	    light.position.set( 0, 1, 0).normalize();
 	    scene.add(light);
 	    //not sure why we need this light, shouldn't ambient light 
 	    //up the whole scene?? 
 
-	    //number two -- on the camera 
-	     var secondLight = new THREE.DirectionalLight( 0xffffff );
-	     camera.add(secondLight);
+	    // //number two -- on the camera 
+	    //  var secondLight = new THREE.DirectionalLight( 0xffffff );
+	    //  camera.add(secondLight);
 
 	     //number three -- ambient 
-	     var thirdLight = new THREE.AmbientLight(0x777777);
+	     var thirdLight = new THREE.AmbientLight(0xaaaaaa);
          scene.add(thirdLight);
 
 
@@ -222,15 +222,11 @@ var game = function(){
 	};
 
 		var handleInput = function(){
-		// if (Key.isDown(Key.T)) {
-		// 	ship.positon.x -= 1; 
-		// 	console.log("pause");
-		// }
 
 		//the && statement is a temporary fix for the fade-to-black 
 		//functionality when the user leaves the field of view 
-		if (Key.isDown(Key.A) && ship.position.x >= -40) {
-			if (ship.position.x == -40){
+		if (Key.isDown(Key.A) && ship.position.x >= -75) {
+			if (ship.position.x == -75){
 				//while (ship.position.x == -40){
 				//this should be replaced by a UI arrow event pointing the user back towards
 				//the in-play area
@@ -243,7 +239,7 @@ var game = function(){
 					context1 = canvas1.getContext('2d');
 					context1.font = "Bold 40px Arial";
 					context1.fillStyle = "rgba(255,0,0,0.95)";
-				    context1.fillText('>', 0, 50);
+				    context1.fillText('   >', 0, 50);
 				    
 					// canvas contents will be used for a texture
 					 texture1 = new THREE.Texture(canvas1);
@@ -268,8 +264,8 @@ var game = function(){
 			// console.log(pos);
 			// make the camera move down too?
 		}
-		if (Key.isDown(Key.D) && ship.position.x <= 40) {
-			if (ship.position.x == 40){
+		if (Key.isDown(Key.D) && ship.position.x <= 75) {
+			if (ship.position.x == 75){
 				//this should be replaced by a UI arrow event pointing the user back towards
 				//the in-play area
 				console.log("you've gone too far!!"); 
@@ -280,7 +276,7 @@ var game = function(){
 				context1 = canvas1.getContext('2d');
 				context1.font = "Bold 40px Arial";
 				context1.fillStyle = "rgba(255,0,0,0.95)";
-			    context1.fillText('<', 0, 50);
+			    context1.fillText('<   ', 0, 50);
 			    
 				// canvas contents will be used for a texture
 				 texture1 = new THREE.Texture(canvas1);
@@ -303,8 +299,8 @@ var game = function(){
 			ship.position.x += 1;
 			ship.rotation.z -= .01;
 		} 
-		if (Key.isDown(Key.S) && ship.position.y >= 10) {
-			if (ship.position.y == 10){
+		if (Key.isDown(Key.S) && ship.position.y >= -5) {
+			if (ship.position.y == -5){
 				//this should be replaced by a UI arrow event pointing the user back towards
 				//the in-play area
 				console.log("you've gone too far!!"); 
@@ -337,8 +333,8 @@ var game = function(){
 			ship.position.y -= 1;
 			ship.rotation.x -= .01;
 	   	} 
-	   	if (Key.isDown(Key.W) && ship.position.y <= 45) {
-			if (ship.position.y == 45){
+	   	if (Key.isDown(Key.W) && ship.position.y <= 60) {
+			if (ship.position.y == 60){
 				//this should be replaced by a UI arrow event pointing the user back towards
 				//the in-play area
 				console.log("you've gone too far!!");
@@ -383,7 +379,7 @@ var game = function(){
 			color:0xffffff, 
 			map: THREE.ImageUtils.loadTexture('textures/metal.jpg'),
 			bumpMap: THREE.ImageUtils.loadTexture('textures/sandBumpMap.jpg'),
-			bumpScale: 0.5
+			bumpScale: 0.9
 		});
 
 		//console.log("ship before " + ship)
@@ -425,7 +421,7 @@ var game = function(){
 			livesMesh.position.z -= 1; 
 			//livesMesh.position.z -= 1; 
 			
-			if (mesh1 != null && ship.position.x < 60 && ship.position.x > -60 && ship.position.y > 0 && ship.position.y < 45)
+			if (mesh1 != null && ship.position.x < 75 && ship.position.x > -75 && ship.position.y > -5 && ship.position.y < 60)
 			{
 				console.log("enter");
 				scene.remove(mesh1); 
@@ -482,7 +478,7 @@ function ObstacleGenerator(){
 						color:0xffffff, 
 						map: THREE.ImageUtils.loadTexture( 'textures/pyramid2.jpg'),
 						bumpMap: THREE.ImageUtils.loadTexture('textures/sandBumpMap.jpg'),
-						bumpScale: 0.5
+						bumpScale: 0.9
 					}), 
 					new THREE.MeshPhongMaterial({
 						color:0xffffff, 
@@ -547,7 +543,7 @@ RingGenerator.prototype = {
 							color:0xffffff, 
 							map: THREE.ImageUtils.loadTexture( 'textures/ice.jpg' ), 
 							bumpMap: THREE.ImageUtils.loadTexture('textures/sandBumpMap.jpg'),
-							bumpScale: 0.5
+							bumpScale: 0.3
 						});
 		}
 		else
@@ -557,7 +553,7 @@ RingGenerator.prototype = {
 							color:0xffffff, 
 							map: THREE.ImageUtils.loadTexture( 'textures/fire.jpg' ), 
 							bumpMap: THREE.ImageUtils.loadTexture('textures/sandBumpMap.jpg'),
-							bumpScale: 0.5
+							bumpScale: 0.3
 						});
 		}
 
@@ -645,6 +641,11 @@ TerrainGenerator.prototype = {
 	}, 
 
 	generateInitialTiles: function(scene){
+		//doesn't seem to affect performance, might as well leave it
+		this.generateNextTile(scene);
+		this.generateNextTile(scene);
+		this.generateNextTile(scene);
+		this.generateNextTile(scene);
 		this.generateNextTile(scene);
 		this.generateNextTile(scene);
 		this.generateNextTile(scene);
@@ -688,7 +689,7 @@ TerrainGenerator.prototype = {
 						color:0xffffff, 
 						map: THREE.ImageUtils.loadTexture( 'textures/sand.jpg'),
 						bumpMap: THREE.ImageUtils.loadTexture('textures/sandBumpMap.jpg'),
-						bumpScale: 0.5
+						bumpScale: 1.3
 					});
 
 					var object1 = new THREE.Mesh(geometry, material);
