@@ -5,26 +5,90 @@
 //should we make it so that pause pauses the spaceship too? 
 
 //as of right now this will only run properly in Safari. 
+var hex = 0xff0000; 
+var bbox;
 var track = 0;
+var endgame; 
 var scene; 
 var mesh1; 
 var scoreMesh; 
 var livesMesh;  
 var score = 0; 
 var camera; 
+var vertCount;
+//var vertCount; 
 var lives = 3; 
 var loader = new THREE.JSONLoader();
+var clock = new THREE.Clock(); 
 //var startPos = -100; 
+var activeObstacles = [];
+
+var arrowList = [];
+var directionList = [];
+var activeObstacles = []; 
+
+var ship; 
+
+var first = 1;
+
+//console.log(activeObstacles); 
+
+// var obstacle; 
+// var obstacle2; 
+
+var collisionDetector = function(){
+		activeObstacles = this.activeObstacles; 
+		// var originPoint = this.ship.position;
+
+		// vertCount = getShipVertices(); 
+		// console.log(vertCount); 
+
+
+		//console.log(ship); 
+		
+	 //    vertCount = ship.geometry.vertices.length; 
+
+		// console.log(vertCount + 'v'); 
+
+		//getShipVerticies();
+
+		//console.log(ship.position);
+
+		//console.log(ship.position.geometry); 
+
+		//console.log(ship); 
+		//var vertexIndex; 
+
+		// for (vertexIndex = 0; vertexIndex < vertCount; vertexIndex++)
+		// 	{       
+		// 		console.log(vertCount); 
+
+		// 	    // var localVertex = ship.geometry.vertices[vertexIndex].clone();
+		// 	    // var globalVertex = ship.matrix.multiplyVector3(localVertex);
+		// 	    // var directionVector = globalVertex.subSelf(ship.position);
+
+		// 	    // var ray = new THREE.Ray( ship.position, directionVector.clone().normalize() );
+		// 	    // var collisionResults = ray.intersectObjects(activeObstacles);
+		// 	    // if (collisionResults.length > 0 && collisionResults[0].distance < directionVector.length() ) 
+		// 	    // {
+			        
+		// 	    	//something
+			
+
+		// 		console.log("I'm doing something here"); 
+		// 	    // }
+}
+
+
+
 
 
 
 // acts as a main function
 var game = function(){
 
-	var renderer;
-	var ship; 
+	var renderer; 
 	var terrainGenerator;
-	var scene;
 	var collosionDetector; 
 	var backgroundMesh; 
 	var pause = 0;
@@ -39,21 +103,19 @@ var game = function(){
 
 
 	var draw = function(){
+
+		requestAnimationFrame(draw);
+
 		renderer.render(scene, camera);
 
-
+		handleInput();
 		// loop draw function call
 		updateCameraAndShipPositionOnZAxis();
 
-		handleInput();
-
-		if (collisionDetector.detectCollision()){
-			this.endGame();
-		}
-
 		terrainGenerator.generateNextTileIfNeeded(camera.position.z, scene);
 
-		requestAnimationFrame(draw);
+		//collDetector(activeObstacles); 
+
 	};
 
 	//handle pause input on keydown 'p'
@@ -62,32 +124,8 @@ var game = function(){
 
 		if (press === 80 && pause == 0) {
 			pause = 1;  
-
-			cameraPositionX = camera.position.x; 
-			cameraPositionY = camera.position.y; 
-			cameraPositionZ = camera.position.z; 
-			canvas1 = document.createElement('canvas');
-			context1 = canvas1.getContext('2d');
-			context1.font = "Bold 40px Arial";
-			context1.fillStyle = "rgba(255,255,255,0.95)";
-		    context1.fillText('Game Paused', 0, 50);
-		    
-			// canvas contents will be used for a texture
-			texture1 = new THREE.Texture(canvas1);
-			texture1.needsUpdate = true;
-		      
-		    material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
-		    material1.transparent = true;
-
-		    mesh1 = new THREE.Mesh(
-		        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
-		        material1
-		      );
-		    console.log("hello"); 
-			mesh1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ - 200);
-			//scene.add(scoreMesh);
-			scene.add(mesh1);
-			console.log("goodbye");
+			pauseFunc();
+		
 		}
 		else if (press === 80 && pause != 0) {
 
@@ -152,9 +190,9 @@ var game = function(){
 	    //not sure why we need this light, shouldn't ambient light 
 	    //up the whole scene?? 
 
-	    // //number two -- on the camera 
-	    //  var secondLight = new THREE.DirectionalLight( 0xffffff );
-	    //  camera.add(secondLight);
+	    //number two -- on the camera 
+	     var secondLight = new THREE.DirectionalLight( 0xFF0000 );
+	     camera.add(secondLight);
 
 	     //number three -- ambient 
 	     var thirdLight = new THREE.AmbientLight(0xaaaaaa);
@@ -166,13 +204,23 @@ var game = function(){
 		terrainGenerator.generateInitialTiles(scene);
 
 		// SPACESHIP
-		ship = new Spaceship();
+		// ship = new Spaceship();
+
 		//ship.applyTexture();
 		//ship.setInitialPosition();
 
-		console.log(ship);
-		scene.add(ship);
-		//scene.add(ship);
+		// console.log(ship);
+		// scene.add(ship);
+
+		// var shipGeom = ship.geometry; 
+		// console.log(shipGeom); 
+		//console.log(shipGeom.vertices.length); 
+
+
+		//var bbox = new THREE.BoundingBoxHelper(ship, 0xff0000); 
+		//scene.add(bbox.box); 
+		//		console.log(bbox); 
+
 
 
 		canvas1 = document.createElement('canvas');
@@ -222,16 +270,58 @@ var game = function(){
 	};
 
 		var handleInput = function(){
+			//console.log(activeObstacles);
 
-		//the && statement is a temporary fix for the fade-to-black 
-		//functionality when the user leaves the field of view 
-		if (Key.isDown(Key.A) && ship.position.x >= -75) {
-			if (ship.position.x == -75){
-				//while (ship.position.x == -40){
-				//this should be replaced by a UI arrow event pointing the user back towards
-				//the in-play area
-				console.log("you've gone too far!!"); 
-				//arrow = new Three.MeshNormalMaterial
+			//activeObstacles.pop(); 
+			// controls.update();
+			// stats.update();
+
+			//the && statement is a temporary fix for the fade-to-black 
+			//functionality when the user leaves the field of view 
+			if (Key.isDown(Key.A) && ship.position.x >= -75) {
+				if (ship.position.x == -75){
+					//while (ship.position.x == -40){
+					//this should be replaced by a UI arrow event pointing the user back towards
+					//the in-play area
+					console.log("you've gone too far!!"); 
+					//arrow = new Three.MeshNormalMaterial
+						cameraPositionX = camera.position.x; 
+						cameraPositionY = camera.position.y; 
+						cameraPositionZ = camera.position.z; 
+						canvas1 = document.createElement('canvas');
+						context1 = canvas1.getContext('2d');
+						context1.font = "Bold 40px Arial";
+						context1.fillStyle = "rgba(255,0,0,0.95)";
+					    context1.fillText('   >', 0, 50);
+					    
+						// canvas contents will be used for a texture
+						 texture1 = new THREE.Texture(canvas1);
+						 texture1.needsUpdate = true;
+					      
+					     material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
+					     material1.transparent = true;
+
+					    mesh1 = new THREE.Mesh(
+					        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
+					        material1
+					      );
+					    //console.log("hello"); 
+						mesh1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ - 200);
+						scene.add(mesh1);
+						//console.log("goodbye");
+					//}
+				}
+				ship.position.x -= 1;
+				ship.rotation.z += .01;
+				// var pos = ship.position.x; 
+				// console.log(pos);
+				// make the camera move down too?
+			}
+			if (Key.isDown(Key.D) && ship.position.x <= 75) {
+				if (ship.position.x == 75){
+					//this should be replaced by a UI arrow event pointing the user back towards
+					//the in-play area
+					console.log("you've gone too far!!"); 
 					cameraPositionX = camera.position.x; 
 					cameraPositionY = camera.position.y; 
 					cameraPositionZ = camera.position.z; 
@@ -239,7 +329,7 @@ var game = function(){
 					context1 = canvas1.getContext('2d');
 					context1.font = "Bold 40px Arial";
 					context1.fillStyle = "rgba(255,0,0,0.95)";
-				    context1.fillText('   >', 0, 50);
+				    context1.fillText('<   ', 0, 50);
 				    
 					// canvas contents will be used for a texture
 					 texture1 = new THREE.Texture(canvas1);
@@ -253,128 +343,93 @@ var game = function(){
 				        material1
 				      );
 				    //console.log("hello"); 
-					mesh1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ - 200);
+					mesh1.position.set(cameraPositionX + 250, cameraPositionY, cameraPositionZ - 200);
 					scene.add(mesh1);
 					//console.log("goodbye");
-				//}
+
+
+				}
+				ship.position.x += 1;
+				ship.rotation.z -= .01;
+			} 
+			if (Key.isDown(Key.S) && ship.position.y >= -5) {
+				if (ship.position.y == -5){
+					//this should be replaced by a UI arrow event pointing the user back towards
+					//the in-play area
+					console.log("you've gone too far!!"); 
+					//arrow = new Three.MeshNormalMaterial
+					cameraPositionX = camera.position.x; 
+					cameraPositionY = camera.position.y; 
+					cameraPositionZ = camera.position.z; 
+					canvas1 = document.createElement('canvas');
+					context1 = canvas1.getContext('2d');
+					context1.font = "Bold 70px Arial";
+					context1.fillStyle = "rgba(255,0,0,0.95)";
+				    context1.fillText('^', 0, 50);
+				    
+					// canvas contents will be used for a texture
+					 texture1 = new THREE.Texture(canvas1);
+					 texture1.needsUpdate = true;
+				      
+				     material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
+				     material1.transparent = true;
+
+				    mesh1 = new THREE.Mesh(
+				        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
+				        material1
+				      );
+				    //console.log("hello"); 
+					mesh1.position.set(cameraPositionX + 130 , cameraPositionY +50 , cameraPositionZ - 200);
+					scene.add(mesh1);
+					//console.log("goodbye");
+				}
+				ship.position.y -= 1;
+				ship.rotation.x -= .01;
+		   	} 
+		   	if (Key.isDown(Key.W) && ship.position.y <= 60) {
+				if (ship.position.y == 60){
+					//this should be replaced by a UI arrow event pointing the user back towards
+					//the in-play area
+					console.log("you've gone too far!!");
+					cameraPositionX = camera.position.x; 
+					cameraPositionY = camera.position.y; 
+					cameraPositionZ = camera.position.z; 
+					canvas1 = document.createElement('canvas');
+					context1 = canvas1.getContext('2d');
+					context1.font = "Bold 70px Arial";
+					context1.fillStyle = "rgba(255,0,0,0.95)";
+				    context1.fillText('v', 0, 50);
+				    
+					// canvas contents will be used for a texture
+					 texture1 = new THREE.Texture(canvas1);
+					 texture1.needsUpdate = true;
+				      
+				     material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
+				     material1.transparent = true;
+
+				    mesh1 = new THREE.Mesh(
+				        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
+				        material1
+				      );
+				    //console.log("hello"); 
+					mesh1.position.set(cameraPositionX + 130 , cameraPositionY + 20 , cameraPositionZ - 200);
+					scene.add(mesh1);
+					//console.log("goodbye"); 
+				}
+				ship.position.y += 1;
+				ship.rotation.x += .01;
+				//var pos = ship.position.y; 
+				//console.log(pos); 
+				//console.log("hello"); 
 			}
-			ship.position.x -= 1;
-			ship.rotation.z += .01;
-			// var pos = ship.position.x; 
-			// console.log(pos);
-			// make the camera move down too?
 		}
-		if (Key.isDown(Key.D) && ship.position.x <= 75) {
-			if (ship.position.x == 75){
-				//this should be replaced by a UI arrow event pointing the user back towards
-				//the in-play area
-				console.log("you've gone too far!!"); 
-				cameraPositionX = camera.position.x; 
-				cameraPositionY = camera.position.y; 
-				cameraPositionZ = camera.position.z; 
-				canvas1 = document.createElement('canvas');
-				context1 = canvas1.getContext('2d');
-				context1.font = "Bold 40px Arial";
-				context1.fillStyle = "rgba(255,0,0,0.95)";
-			    context1.fillText('<   ', 0, 50);
-			    
-				// canvas contents will be used for a texture
-				 texture1 = new THREE.Texture(canvas1);
-				 texture1.needsUpdate = true;
-			      
-			     material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
-			     material1.transparent = true;
-
-			    mesh1 = new THREE.Mesh(
-			        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
-			        material1
-			      );
-			    //console.log("hello"); 
-				mesh1.position.set(cameraPositionX + 250, cameraPositionY, cameraPositionZ - 200);
-				scene.add(mesh1);
-				//console.log("goodbye");
-
-
-			}
-			ship.position.x += 1;
-			ship.rotation.z -= .01;
-		} 
-		if (Key.isDown(Key.S) && ship.position.y >= -5) {
-			if (ship.position.y == -5){
-				//this should be replaced by a UI arrow event pointing the user back towards
-				//the in-play area
-				console.log("you've gone too far!!"); 
-				//arrow = new Three.MeshNormalMaterial
-				cameraPositionX = camera.position.x; 
-				cameraPositionY = camera.position.y; 
-				cameraPositionZ = camera.position.z; 
-				canvas1 = document.createElement('canvas');
-				context1 = canvas1.getContext('2d');
-				context1.font = "Bold 70px Arial";
-				context1.fillStyle = "rgba(255,0,0,0.95)";
-			    context1.fillText('^', 0, 50);
-			    
-				// canvas contents will be used for a texture
-				 texture1 = new THREE.Texture(canvas1);
-				 texture1.needsUpdate = true;
-			      
-			     material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
-			     material1.transparent = true;
-
-			    mesh1 = new THREE.Mesh(
-			        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
-			        material1
-			      );
-			    //console.log("hello"); 
-				mesh1.position.set(cameraPositionX + 130 , cameraPositionY +50 , cameraPositionZ - 200);
-				scene.add(mesh1);
-				//console.log("goodbye");
-			}
-			ship.position.y -= 1;
-			ship.rotation.x -= .01;
-	   	} 
-	   	if (Key.isDown(Key.W) && ship.position.y <= 60) {
-			if (ship.position.y == 60){
-				//this should be replaced by a UI arrow event pointing the user back towards
-				//the in-play area
-				console.log("you've gone too far!!");
-				cameraPositionX = camera.position.x; 
-				cameraPositionY = camera.position.y; 
-				cameraPositionZ = camera.position.z; 
-				canvas1 = document.createElement('canvas');
-				context1 = canvas1.getContext('2d');
-				context1.font = "Bold 70px Arial";
-				context1.fillStyle = "rgba(255,0,0,0.95)";
-			    context1.fillText('v', 0, 50);
-			    
-				// canvas contents will be used for a texture
-				 texture1 = new THREE.Texture(canvas1);
-				 texture1.needsUpdate = true;
-			      
-			     material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
-			     material1.transparent = true;
-
-			    mesh1 = new THREE.Mesh(
-			        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
-			        material1
-			      );
-			    //console.log("hello"); 
-				mesh1.position.set(cameraPositionX + 130 , cameraPositionY + 20 , cameraPositionZ - 200);
-				scene.add(mesh1);
-				//console.log("goodbye"); 
-			}
-			ship.position.y += 1;
-			ship.rotation.x += .01;
-			//var pos = ship.position.y; 
-			//console.log(pos); 
-			//console.log("hello"); 
-		}
-	}
 
 	var initializeSpaceship = function(){
 	
-	loader.load( 'textures/spaceship.json', function (geometry) {
+	loader.load( 'textures/spaceship.json', function (object2) {
 
+		//console.log("ship before " + ship)
+	
 		var material = new THREE.MeshPhongMaterial({
 			color:0xffffff, 
 			map: THREE.ImageUtils.loadTexture('textures/metal.jpg'),
@@ -382,8 +437,9 @@ var game = function(){
 			bumpScale: 0.9
 		});
 
-		//console.log("ship before " + ship)
-		ship = new THREE.Mesh(geometry, material);
+
+
+		ship = new THREE.Mesh(object2, material);
 
 		// demonstrates that it's not the ship that's making the game perform like ass
 		//ship = new THREE.Mesh(new THREE.CubeGeometry(), new THREE.MeshNormalMaterial());
@@ -393,33 +449,90 @@ var game = function(){
 		ship.rotation.y =3.14;
 		ship.rotation.x = .5;
 		ship.scale.set(5,5,5);
+
+		bbox = new THREE.BoundingBoxHelper(object2, hex);
+		// console.log(bbox); 
+		// console.log(bbox.geometry);  
+		// console.log(bbox.geometry.vertices); 
+		// console.log(bbox.geometry.vertices.length); 
+		//bbox.update(); 
+		 
+
+		//THREE.computeBoundingBox(ship); 
 		//camera.add(ship);
-		//ship.add(camera); 
-		camera.add(ship); 
+		//ship.add(camera);
+		//scene.add(bbox);  
+		
+		//bbox.position.set(0, 36, -100); 
+		//bbox.position.set(0, 36, -100);
+		// console.log(bbox.position);
+		//bbox = bbox.scale(2,2,2); 
+		ship.add(bbox);  
+		camera.add(ship);
+
+
+		//console.log(bbox.position.x);
+
 		draw(scene);
+		//console.log(activeObstacles); 
 	});
 
 };
 
-	var initializeCollisionDetector = function(){
-		collisionDetector = new CollisionDetector(ship.model, terrainGenerator, terrainGenerator.activeTerrain, 
-												  terrainGenerator.getObstacleGenerator().activeObstacles);
-	}
 
-	var endGame = function(){
+pauseFunc = function() {
+	cameraPositionX = camera.position.x; 
+	cameraPositionY = camera.position.y; 
+	cameraPositionZ = camera.position.z; 
+	canvas1 = document.createElement('canvas');
+	context1 = canvas1.getContext('2d');
+	context1.font = "Bold 40px Arial";
+	context1.fillStyle = "rgba(255,255,255,0.95)";
+    context1.fillText('Game Paused', 0, 50);
+    
+	// canvas contents will be used for a texture
+	texture1 = new THREE.Texture(canvas1);
+	texture1.needsUpdate = true;
+      
+    material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
+    material1.transparent = true;
+
+    mesh1 = new THREE.Mesh(
+        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
+        material1
+      );
+    console.log("hello"); 
+	mesh1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ - 200);
+	//scene.add(scoreMesh);
+	scene.add(mesh1);
+	console.log("goodbye");
+}
+
+	endGame = function(){
 		console.log("There was a collision and you died lol")
+		pause = 1; 
+		//0 = 1; 
+		//break; 
 	}
 
 	var updateCameraAndShipPositionOnZAxis = function(){
+		//console.log(activeObstacles); 
+
 		//implements pause functionality 
+		score +=1; 
+		scene.remove(scoreMesh); 
+		scene.add(scoreMesh);
+		//scene.add(ship); 
 		if (pause == 0) {
 			camera.position.z -= 1;
 			//camera.rotation.y = 90;
-			ship.position.z = ship.position.z;
+			//ship.position.z = ship.position.z;
 			backgroundMesh.position.z -= 1;
 			scoreMesh.position.z -= 1; 
 			livesMesh.position.z -= 1; 
+			//bbox.position.z -= 1; 
 			//livesMesh.position.z -= 1; 
+
 			
 			if (mesh1 != null && ship.position.x < 75 && ship.position.x > -75 && ship.position.y > -5 && ship.position.y < 60)
 			{
@@ -440,10 +553,12 @@ var game = function(){
 	};
 
 	(function main(){
-		createScene();
-		initializeCollisionDetector();
-		initializeSpaceship(); 
-		//draw();
+		createScene();	
+		initializeSpaceship();
+		draw(scene);
+		//collisionDetector();
+
+		//console.log("helloal;ksjdfl"); 
 	})();
 
 };
@@ -457,22 +572,8 @@ function handleTextureLoaded(image, texture) {
   gl.bindTexture(gl.TEXTURE_2D, null);
 }
 
-function CollisionDetector(ship, terrainList, obstacleList){
-	this.ship = ship;
-	this.activeTerrainList = terrainList;
-	this.activeObstacleList = obstacleList;
-}
-
-CollisionDetector.prototype = {
-
-	detectCollision: function(){
-		return false;
-	}
-
-}
-
 function ObstacleGenerator(){
-	this.activeObstacles = [];
+	//this.activeObstacles = [];
 	this.obstacleGeometries = [new THREE.CylinderGeometry( 0, 30, 100, 4, 4 ), new THREE.CylinderGeometry( 0, 45, 50, 3, 4 )];
 	this.obstacleMaterials = [new THREE.MeshPhongMaterial({
 						color:0xffffff, 
@@ -515,13 +616,13 @@ ObstacleGenerator.prototype = {
 		obstacle2.position.z = -zCoordinateOfTile + 50;
 
 
-		this.activeObstacles.push(obstacle);
-	    this.activeObstacles.shift();
+		activeObstacles.push(obstacle);
+	    //activeObstacles.shift();
 
-	    this.activeObstacles.push(obstacle2);
-	    this.activeObstacles.shift();
+	    activeObstacles.push(obstacle2);
+	    //activeObstacles.shift(); 
 
-		scene.add(obstacle)
+		scene.add(obstacle) 
 		scene.add(obstacle2);
 	}
 }
@@ -575,42 +676,6 @@ RingGenerator.prototype = {
 	}
 }
 
-ObstacleGenerator.prototype = {
-	constructor: ObstacleGenerator,
-
-	generateObstacles: function(zCoordinateOfTile, scene){	 
-		obstacle = new THREE.Mesh(this.obstacleGeometries[0], this.obstacleMaterials[track]);
-
-		track++; 
-		if (track > 2){
-			track = 0; 
-		}
-
-		//console.log(i); 
-		obstacle2 = new THREE.Mesh(this.obstacleGeometries[1], this.obstacleMaterials[track]); 
-		//obstacle.position.x = // random between -400 and 0?
-
-		obstacle.position.x = (Math.random() * 200) - 100;
-		obstacle2.position.x = (Math.random() * 200) - 100;
-
-		obstacle.position.y = 5;
-		obstacle2.position.y = 5;
-
-		obstacle.position.z = -zCoordinateOfTile;
-		obstacle2.position.z = -zCoordinateOfTile + 50;
-
-
-		this.activeObstacles.push(obstacle);
-	    this.activeObstacles.shift();
-
-	    this.activeObstacles.push(obstacle2);
-	    this.activeObstacles.shift();
-
-		scene.add(obstacle)
-		scene.add(obstacle2);
-	}
-}
-
 function TerrainGenerator(){
 	this.zRenderingPosition = 0;
 	this.activeTerrain = [];
@@ -642,6 +707,7 @@ TerrainGenerator.prototype = {
 
 	generateInitialTiles: function(scene){
 		//doesn't seem to affect performance, might as well leave it
+
 		this.generateNextTile(scene);
 		this.generateNextTile(scene);
 		this.generateNextTile(scene);
@@ -666,8 +732,8 @@ TerrainGenerator.prototype = {
 		}
 	},
 
-	generateNextTile: function(scene){
-		console.log("check1");
+	generateNextTile: function(scene, ship){
+		//console.log("check1");
 		//zpos = ship.position.z; 
 		//console.log(zpos); 
 		var START = -200;
@@ -684,6 +750,7 @@ TerrainGenerator.prototype = {
 
 				// Function when resource is loaded
 				function (geometry) {
+
 
 					var material = new THREE.MeshPhongMaterial({
 						color:0xffffff, 
@@ -705,12 +772,14 @@ TerrainGenerator.prototype = {
 
 					AT.push(object1);
 					AT.shift();
+
+					collisionDetector(); 
 					
 					scene.add(object1);
 				}
 			);
 	    }
-	    this.obstacleGenerator.generateObstacles(this.zRenderingPosition, scene);
+	    this.obstacleGenerator.generateObstacles(this.zRenderingPosition, scene, ship);
 	    this.ringGenerator.generateRings(this.zRenderingPosition, scene);
 		this.zRenderingPosition += 100;
 	}
@@ -747,6 +816,80 @@ Spaceship.prototype = {
 	},
 }
 
+// function collDetector(obstacles) {
+// 			//console.log(ship); 
+// 			var delta = clock.getDelta(); // seconds.
+// 			//console.log(delta);
+			
+// 			// var moveDistance = 200 * delta; // 200 pixels per second
+// 			// var rotateAngle = Math.PI / 2 * delta;   // pi/2 radians (90 degrees) per second
+			
+						
+// 			// // collision detection:
+// 			// //   determines if any of the rays from the cube's origin to each vertex
+// 			// //		intersects any face of a mesh in the array of target meshes
+// 			// //   for increased collision accuracy, add more vertices to the cube;
+// 			// //		for example, new THREE.CubeGeometry( 64, 64, 64, 8, 8, 8, wireMaterial )
+// 			// //   HOWEVER: when the origin of the ray is within the target mesh, collisions do not occur
+// 			var originPoint = ship.position.clone();
+// 			//console.log(originPoint); 
+// 			//console.log(originPoint);
+
+// 			// clearText();
+
+// 			//var count2 = ship.geometry.vertices.length; 
+// 			//console.log(count2 + 'v'); 
+
+			
+ 			
+// 			for (var vertexIndex = 0; vertexIndex < ship.geometry.vertices.length; vertexIndex++)
+// 			{	
+// 				//console.log(obstacles); 
+// 				//activeObstacles = this.activeObstacles;	
+// 				var localVertex = ship.geometry.vertices[vertexIndex].clone();
+// 				var globalVertex = localVertex.applyMatrix4( ship.matrix );
+// 				var directionVector = globalVertex.sub( ship.position );
+// 				//console.log(directionVector); 
+// 				//activeObstacles = []; 
+// 				//var shipVert = ship.geometry.vertices.length; 
+// 				//console.log(shipVert); 
+
+// 				var ray = new THREE.Raycaster(originPoint, directionVector.clone().normalize(), 0.1, 500);
+// 				var collisionResults = [];
+// 				collisionResults.push(ray.intersectObjects(obstacles)); 
+// 				//console.log(activeObstacles);
+// 				if ( collisionResults.length > 0 && collisionResults[0].distance < directionVector.length()){ 
+// 				 	console.log("collision detected");
+// 				 	pauseFunc(); 
+// 				 	return; 
+// 				 }
+// 				 //collisionResults.pop(); 
+// 				 // activeObstacles.push(this.activeObstacles); 
+// 				//console.log(count2);
+// 				console.log(directionVector);
+// 	}
+// 	for (var item = 0; item < activeObstacles.length; item++) {
+// 			var logger = this.activeObstacles[item].position.z; 
+// 			//console.log(item, logger);
+// 			if (activeObstacles[item].position.z > -100) {
+// 				activeObstacles.pop(); 
+// 				console.log("pop"); 
+// 		}
+// 	} 
+
+var getShipVertices = function() {
+	//var VC = ship.geometry.vertices.length;
+	var hex  = 0xff0000;
+	var VC = THREE.BoundingBoxHelper(ship, hex); 
+	VC.update(); 
+	scene.add(VC);
+	var vCount = VC.box.geometry.vertices.length; 
+	console.log(vCount + 'v');
+}
+// //keep list of 12
+// // - try iterating through it? 
+
+// }
 
 
 
