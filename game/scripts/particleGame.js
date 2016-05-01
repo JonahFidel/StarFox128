@@ -5,36 +5,42 @@
 //should we make it so that pause pauses the spaceship too? 
 
 //as of right now this will only run properly in Safari. 
-var hex = 0xff0000; 
-var bbox;
-var rayTrack; 
 var track = 0;
-var endgame = false; 
 var scene; 
 var mesh1; 
 var scoreMesh; 
-//var livesMesh;  
+var livesMesh;  
 var score = 0; 
 var camera; 
-var vertCount;
-//var vertCount; 
 var lives = 3; 
 var loader = new THREE.JSONLoader();
-var clock = new THREE.Clock(); 
 //var startPos = -100; 
+
+var clock = new THREE.Clock();
+var activeTerrain = [];
 var activeObstacles = [];
-var activeRings = [];
-var activeRingBoxes = [];
 
-var arrowList = [];
-var directionList = [];
 
-var ship; 
+// acts as a main function
+var game = function(){
 
-var first = 1;
-var count5 = 0; 
+	var renderer;
+	var ship; 
+	var terrainGenerator;
+	//var scene;
+	var collosionDetector; 
+	var backgroundMesh; 
+	var pause = 0;
+	var canvas1;  
+	var context1;
+	var material1; 
+	var texture1; 
+	var context2; 
+	var canvas2; 
+	var material2; 
+	var texture2; 
 
-var lavaTexture = new THREE.ImageUtils.loadTexture( 'textures/lava.jpg');
+	var lavaTexture = new THREE.ImageUtils.loadTexture( 'textures/lava.jpg');
 	lavaTexture.wrapS = lavaTexture.wrapT = THREE.RepeatWrapping; 
 	// multiplier for distortion speed 		
 	var baseSpeed = 0.02;
@@ -84,60 +90,25 @@ var lavaTexture = new THREE.ImageUtils.loadTexture( 'textures/lava.jpg');
 	//engine.setValues( Examples.candle );
 	//engine.initialize(scene);
 
-// acts as a main function
-var game = function(){
-
-	var renderer; 
-	var terrainGenerator;
-	var collosionDetector; 
-	var backgroundMesh; 
-	var pause = 0;
-	var canvas1;  
-	var context1;
-	var material1; 
-	var texture1; 
-	var context2; 
-	var canvas2; 
-	var material2; 
-	var texture2; 
-
 
 	var draw = function(){
-
-		requestAnimationFrame(draw);
-
 		renderer.render(scene, camera);
+
+
+		// loop draw function call
+		updateCameraAndShipPositionOnZAxis();
 
 		handleInput();
 
-		updateCameraAndShipPositionOnZAxis();
+		update();
 
-		collisionDetector();  
+		// if (collisionDetector.detectCollision()){
+		// 	this.endGame();
+		// }
 
-		terrainGenerator.generateNextTileIfNeeded(camera.position.z, true);
-	
-		// canvas1 = document.createElement('canvas');
-		// context1 = canvas1.getContext('2d');
-		// context1.font = "Bold 65px Arial";
-		// context1.fillStyle = "rgba(255,255,255,0.95)";
-	 //    context1.fillText('Score: ' + score, 0, 50);
-	    
-		// // canvas contents will be used for a texture
-		//  texture1 = new THREE.Texture(canvas1);
-		//  texture1.needsUpdate = true;
-	      
-	 //     material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
-	 //     material1.transparent = true;
+		terrainGenerator.generateNextTileIfNeeded(camera.position.z);
 
-	 //    scoreMesh = new THREE.Mesh(
-	 //        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
-	 //        material1
-	 //      );
-
-		// scoreMesh.position.set(camera.position.x -490, camera.position.y + 300, camera.position.z -500);
-		// camera.add(scoreMesh);
-		// //console.log("scoreMesh added");
-
+		requestAnimationFrame(draw);
 	};
 
 	//handle pause input on keydown 'p'
@@ -146,8 +117,30 @@ var game = function(){
 
 		if (press === 80 && pause == 0) {
 			pause = 1;  
-			pauseFunc();
-		
+
+			cameraPositionX = camera.position.x; 
+			cameraPositionY = camera.position.y; 
+			cameraPositionZ = camera.position.z; 
+			canvas1 = document.createElement('canvas');
+			context1 = canvas1.getContext('2d');
+			context1.font = "Bold 40px Arial";
+			context1.fillStyle = "rgba(255,255,255,0.95)";
+		    context1.fillText('Game Paused', 0, 50);
+		    
+			// canvas contents will be used for a texture
+			texture1 = new THREE.Texture(canvas1);
+			texture1.needsUpdate = true;
+		      
+		    material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
+		    material1.transparent = true;
+
+		    mesh1 = new THREE.Mesh(
+		        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
+		        material1
+		      );
+			mesh1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ - 200);
+			//scene.add(scoreMesh);
+			scene.add(mesh1);
 		}
 		else if (press === 80 && pause != 0) {
 
@@ -195,35 +188,36 @@ var game = function(){
 		camera.position.z = 30;
 		camera.position.y = 20;
 
-		console.log("this works"); 
-
-
 		var camPos = camera.position.x;
 		var camPosZ = camera.position.z; 
-		console.log("camPos " + camPos);
-
-
 
 		// LIGHT
 		// number one -- start light? 
 		var light = new THREE.DirectionalLight( 0xffffff );
-	    light.position.set( 0, 1, 0).normalize();
+	    light.position.set( 0, 1, 1 ).normalize();
 	    scene.add(light);
 	    //not sure why we need this light, shouldn't ambient light 
 	    //up the whole scene?? 
 
 	    //number two -- on the camera 
-	     var secondLight = new THREE.DirectionalLight( 0xFF0000 );
+	     var secondLight = new THREE.DirectionalLight( 0xff7777 );
 	     camera.add(secondLight);
 
 	     //number three -- ambient 
-	     var thirdLight = new THREE.AmbientLight(0xaaaaaa);
+	     var thirdLight = new THREE.AmbientLight(0x777777);
          scene.add(thirdLight);
 
 
 	    // TERRAIN GENERATOR
 		terrainGenerator = new TerrainGenerator();
-		terrainGenerator.generateInitialTiles();
+		terrainGenerator.generateInitialTiles(scene);
+
+		// SPACESHIP
+		//ship = new Spaceship();
+		//ship.applyTexture();
+		//ship.setInitialPosition();
+
+		scene.add(ship);
 
 		canvas1 = document.createElement('canvas');
 		context1 = canvas1.getContext('2d');
@@ -245,9 +239,8 @@ var game = function(){
 
 		scoreMesh.position.set(-490, 300, -500);
 		scene.add(scoreMesh);
-		console.log("scoreMesh added");
 
-				canvas2 = document.createElement('canvas');
+		canvas2 = document.createElement('canvas');
 		context2 = canvas2.getContext('2d');
 		context2.font = "Bold 65px Arial";
 		context2.fillStyle = "rgba(255,255,255,0.95)";
@@ -260,14 +253,16 @@ var game = function(){
 	     material2 = new THREE.MeshBasicMaterial( {map: texture2, side:THREE.DoubleSide } );
 	     material2.transparent = true;
 
-	 //    livesMesh = new THREE.Mesh(
-	 //        new THREE.PlaneGeometry(canvas2.width, canvas2.height),
-	 //        material2
-	 //      );
+	    livesMesh = new THREE.Mesh(
+	        new THREE.PlaneGeometry(canvas2.width, canvas2.height),
+	        material2
+	      );
 
-		// livesMesh.position.set(-490, 240, -500);
-		//scene.add(livesMesh);
-		console.log("livesMesh added");
+		livesMesh.position.set(-490, 240, -500);
+		scene.add(livesMesh);
+
+		// console.log("Engine pos: " + engine.particleMesh.position.z);
+
 	};
 
 	function update()
@@ -325,54 +320,27 @@ var game = function(){
 
 		ball3.position.set(-0.7, 0.5, -5);
 		ball4.position.set(0.7, 0.5, -5);
+		
 	};
 
-		var handleInput = function(){
-			if (Key.isDown(Key.A) && ship.position.x >= -75) {
-				if (ship.position.x == -75){
-					//while (ship.position.x == -40){
-					//this should be replaced by a UI arrow event pointing the user back towards
-					//the in-play area
-					console.log("you've gone too far!!"); 
-					//arrow = new Three.MeshNormalMaterial
-						cameraPositionX = camera.position.x; 
-						cameraPositionY = camera.position.y; 
-						cameraPositionZ = camera.position.z; 
-						canvas1 = document.createElement('canvas');
-						context1 = canvas1.getContext('2d');
-						context1.font = "Bold 40px Arial";
-						context1.fillStyle = "rgba(255,0,0,0.95)";
-					    context1.fillText('   >', 0, 50);
-					    
-						// canvas contents will be used for a texture
-						 texture1 = new THREE.Texture(canvas1);
-						 texture1.needsUpdate = true;
-					      
-					     material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
-					     material1.transparent = true;
+	var handleInput = function(){
+		// if (Key.isDown(Key.T)) {
+		// 	ship.positon.x -= 1; 
+		// 	console.log("pause");
+		// }
 
-					    mesh1 = new THREE.Mesh(
-					        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
-					        material1
-					      );
-					    //console.log("hello"); 
-						mesh1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ - 200);
-						scene.add(mesh1);
-						//console.log("goodbye");
-					//}
-				}
-				ship.position.x -= 1;
-				backgroundMesh.position.x += 5; 
-				ship.rotation.z += .01;
-				// var pos = ship.position.x; 
-				// console.log(pos);
-				// make the camera move down too?
-			}
-			if (Key.isDown(Key.D) && ship.position.x <= 75) {
-				if (ship.position.x == 75){
-					//this should be replaced by a UI arrow event pointing the user back towards
-					//the in-play area
-					console.log("you've gone too far!!"); 
+		//the && statement is a temporary fix for the fade-to-black 
+		//functionality when the user leaves the field of view 
+		if (Key.isDown(Key.A)) {
+			if (ship.position.x == -40){
+				//while (ship.position.x == -40){
+				//this should be replaced by a UI arrow event pointing the user back towards
+				//the in-play area
+				//arrow = new Three.MeshNormalMaterial
+
+
+
+
 					cameraPositionX = camera.position.x; 
 					cameraPositionY = camera.position.y; 
 					cameraPositionZ = camera.position.z; 
@@ -380,7 +348,7 @@ var game = function(){
 					context1 = canvas1.getContext('2d');
 					context1.font = "Bold 40px Arial";
 					context1.fillStyle = "rgba(255,0,0,0.95)";
-				    context1.fillText('<   ', 0, 50);
+				    context1.fillText('>', 0, 50);
 				    
 					// canvas contents will be used for a texture
 					 texture1 = new THREE.Texture(canvas1);
@@ -394,192 +362,177 @@ var game = function(){
 				        material1
 				      );
 				    //console.log("hello"); 
-					mesh1.position.set(cameraPositionX + 250, cameraPositionY, cameraPositionZ - 200);
+					mesh1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ - 200);
 					scene.add(mesh1);
 					//console.log("goodbye");
-
-
-				}
-				ship.position.x += 1;
-				backgroundMesh.position.x -= 5; 
-				ship.rotation.z -= .01;
-			} 
-			if (Key.isDown(Key.S) && ship.position.y >= -5) {
-				if (ship.position.y == -5){
-					//this should be replaced by a UI arrow event pointing the user back towards
-					//the in-play area
-					console.log("you've gone too far!!"); 
-					//arrow = new Three.MeshNormalMaterial
-					cameraPositionX = camera.position.x; 
-					cameraPositionY = camera.position.y; 
-					cameraPositionZ = camera.position.z; 
-					canvas1 = document.createElement('canvas');
-					context1 = canvas1.getContext('2d');
-					context1.font = "Bold 70px Arial";
-					context1.fillStyle = "rgba(255,0,0,0.95)";
-				    context1.fillText('^', 0, 50);
-				    
-					// canvas contents will be used for a texture
-					 texture1 = new THREE.Texture(canvas1);
-					 texture1.needsUpdate = true;
-				      
-				     material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
-				     material1.transparent = true;
-
-				    mesh1 = new THREE.Mesh(
-				        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
-				        material1
-				      );
-				    //console.log("hello"); 
-					mesh1.position.set(cameraPositionX + 130 , cameraPositionY +50 , cameraPositionZ - 200);
-					scene.add(mesh1);
-					//console.log("goodbye");
-				}
-				ship.position.y -= 1;
-				backgroundMesh.position.y += 5; 
-				ship.rotation.x -= .01;
-		   	} 
-		   	if (Key.isDown(Key.W) && ship.position.y <= 60) {
-				if (ship.position.y == 60){
-					//this should be replaced by a UI arrow event pointing the user back towards
-					//the in-play area
-					console.log("you've gone too far!!");
-					cameraPositionX = camera.position.x; 
-					cameraPositionY = camera.position.y; 
-					cameraPositionZ = camera.position.z; 
-					canvas1 = document.createElement('canvas');
-					context1 = canvas1.getContext('2d');
-					context1.font = "Bold 70px Arial";
-					context1.fillStyle = "rgba(255,0,0,0.95)";
-				    context1.fillText('v', 0, 50);
-				    
-					// canvas contents will be used for a texture
-					 texture1 = new THREE.Texture(canvas1);
-					 texture1.needsUpdate = true;
-				      
-				     material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
-				     material1.transparent = true;
-
-				    mesh1 = new THREE.Mesh(
-				        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
-				        material1
-				      );
-				    //console.log("hello"); 
-					mesh1.position.set(cameraPositionX + 130 , cameraPositionY + 20 , cameraPositionZ - 200);
-					scene.add(mesh1);
-					//console.log("goodbye"); 
-				}
-				ship.position.y += 1;
-				backgroundMesh.position.y -= 5; 
-				ship.rotation.x += .01;
-				//var pos = ship.position.y; 
-				//console.log(pos); 
-				//console.log("hello"); 
+				//}
 			}
+
+			backgroundMesh.position.x += 3;
+			ship.position.x -= 1;
+			ship.rotation.z += .01;
+
+			// var pos = ship.position.x; 
+			// console.log(pos);
+			// make the camera move down too?
 		}
+		if (Key.isDown(Key.D)) {
+			if (ship.position.x == 40){
+				//this should be replaced by a UI arrow event pointing the user back towards
+				//the in-play area
+				cameraPositionX = camera.position.x; 
+				cameraPositionY = camera.position.y; 
+				cameraPositionZ = camera.position.z; 
+				canvas1 = document.createElement('canvas');
+				context1 = canvas1.getContext('2d');
+				context1.font = "Bold 40px Arial";
+				context1.fillStyle = "rgba(255,0,0,0.95)";
+			    context1.fillText('<', 0, 50);
+			    
+				// canvas contents will be used for a texture
+				 texture1 = new THREE.Texture(canvas1);
+				 texture1.needsUpdate = true;
+			      
+			     material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
+			     material1.transparent = true;
+
+			    mesh1 = new THREE.Mesh(
+			        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
+			        material1
+			      );
+			    //console.log("hello"); 
+				mesh1.position.set(cameraPositionX + 250, cameraPositionY, cameraPositionZ - 200);
+				scene.add(mesh1);
+				//console.log("goodbye");
+
+
+			}
+			backgroundMesh.position.x -= 3;
+			ship.position.x += 1;
+			ship.rotation.z -= .01;
+		} 
+		if (Key.isDown(Key.S)) {
+			if (ship.position.y == 10){
+				//this should be replaced by a UI arrow event pointing the user back towards
+				//the in-play area
+				//arrow = new Three.MeshNormalMaterial
+				cameraPositionX = camera.position.x; 
+				cameraPositionY = camera.position.y; 
+				cameraPositionZ = camera.position.z; 
+				canvas1 = document.createElement('canvas');
+				context1 = canvas1.getContext('2d');
+				context1.font = "Bold 70px Arial";
+				context1.fillStyle = "rgba(255,0,0,0.95)";
+			    context1.fillText('^', 0, 50);
+			    
+				// canvas contents will be used for a texture
+				 texture1 = new THREE.Texture(canvas1);
+				 texture1.needsUpdate = true;
+			      
+			     material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
+			     material1.transparent = true;
+
+			    mesh1 = new THREE.Mesh(
+			        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
+			        material1
+			      );
+			    //console.log("hello"); 
+				mesh1.position.set(cameraPositionX + 130 , cameraPositionY +50 , cameraPositionZ - 200);
+				scene.add(mesh1);
+				//console.log("goodbye");
+			}
+			backgroundMesh.position.y += 3;
+			ship.position.y -= 1;
+			ship.rotation.x -= .01;
+	   	} 
+	   	if (Key.isDown(Key.W)) {
+			if (ship.position.y == 45){
+				//this should be replaced by a UI arrow event pointing the user back towards
+				//the in-play area
+				cameraPositionX = camera.position.x; 
+				cameraPositionY = camera.position.y; 
+				cameraPositionZ = camera.position.z; 
+				canvas1 = document.createElement('canvas');
+				context1 = canvas1.getContext('2d');
+				context1.font = "Bold 70px Arial";
+				context1.fillStyle = "rgba(255,0,0,0.95)";
+			    context1.fillText('v', 0, 50);
+			    
+				// canvas contents will be used for a texture
+				 texture1 = new THREE.Texture(canvas1);
+				 texture1.needsUpdate = true;
+			      
+			     material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
+			     material1.transparent = true;
+
+			    mesh1 = new THREE.Mesh(
+			        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
+			        material1
+			      );
+
+				mesh1.position.set(cameraPositionX + 130 , cameraPositionY + 20 , cameraPositionZ - 200);
+				scene.add(mesh1);
+			}
+			backgroundMesh.position.y -= 3;
+			ship.position.y += 1;
+			ship.rotation.x += .01;
+
+		}
+	}
 
 	var initializeSpaceship = function(){
 	
-	loader.load( 'textures/spaceship.json', function (object2) {
+		loader.load( 'textures/spaceship.json', function (geometry) {
 
-		//console.log("ship before " + ship)
-	
-		var material = new THREE.MeshPhongMaterial({
-			color:0xffffff, 
-			map: THREE.ImageUtils.loadTexture('textures/metal.jpg'),
-			bumpMap: THREE.ImageUtils.loadTexture('textures/sandBumpMap.jpg'),
-			bumpScale: 0.9
+			var material = new THREE.MeshPhongMaterial({
+				color:0xffffff, 
+				map: THREE.ImageUtils.loadTexture('textures/metal.jpg'),
+				bumpMap: THREE.ImageUtils.loadTexture('textures/sandBumpMap.jpg'),
+				bumpScale: 0.5
+			});
+
+			ship = new THREE.Mesh(geometry, material);
+
+			ship.position.y = 36;
+			ship.position.z = -100;
+			ship.rotation.y = 3.14;
+			ship.rotation.x = .5;
+			ship.scale.set(5,5,5);
+
+			//var flames = loadParticles();
+			loadParticles();
+			//flames.position.set(0,0, -1000)
+			//ship.add(flames); 
+			camera.add(ship); 
+
+			//camera.add(flames);
+
+			draw();
 		});
 
+	};
 
+	var initializeCollisionDetector = function(){
+		// collisionDetector = new CollisionDetector(ship.model, terrainGenerator, terrainGenerator.activeTerrain, 
+		// 										  terrainGenerator.getObstacleGenerator().activeObstacles);
+	}
 
-		ship = new THREE.Mesh(object2, material);
-
-		// demonstrates that it's not the ship that's making the game perform like ass
-		//ship = new THREE.Mesh(new THREE.CubeGeometry(), new THREE.MeshNormalMaterial());
-
-		ship.position.y = 36;
-		ship.position.z = -100;
-		ship.rotation.y =3.14;
-		ship.rotation.x = .5;
-		ship.scale.set(5,5,5);
-
-		// bbox = new THREE.BoundingBoxHelper(ship, hex);
-		// console.log(bbox); 
-		// console.log(bbox.geometry);  
-		// console.log(bbox.geometry.vertices); 
-		// console.log(bbox.geometry.vertices.length);
-
-		rayTrack = bbox.geometry.vertices.length;
-		//console.log(rayTrack); 
-
-		ship.add(bbox);  
-
-		loadParticles(); 
-		camera.add(ship);
-
-		draw();
-	});
-
-};
-
-
-pauseFunc = function() {
-	if (endgame == true) { location.reload() }
-	cameraPositionX = camera.position.x; 
-	cameraPositionY = camera.position.y; 
-	cameraPositionZ = camera.position.z; 
-	canvas1 = document.createElement('canvas');
-	context1 = canvas1.getContext('2d');
-	context1.font = "Bold 40px Arial";
-	context1.fillStyle = "rgba(255,255,255,0.95)";
-    context1.fillText('Game Paused', 0, 50);
-    
-	// canvas contents will be used for a texture
-	texture1 = new THREE.Texture(canvas1);
-	texture1.needsUpdate = true;
-      
-    material1 = new THREE.MeshBasicMaterial( {map: texture1, side:THREE.DoubleSide } );
-    material1.transparent = true;
-
-    mesh1 = new THREE.Mesh(
-        new THREE.PlaneGeometry(canvas1.width, canvas1.height),
-        material1
-      );
-    console.log("hello"); 
-	mesh1.position.set(cameraPositionX, cameraPositionY, cameraPositionZ - 200);
-	//scene.add(scoreMesh);
-	scene.add(mesh1);
-	console.log("goodbye");
-}
-
-	endGame = function(){
+	var endGame = function(){
 		console.log("There was a collision and you died lol")
-		endgame = true; 
-		console.log("You died, game ended. Your score was: " + score);
-		pauseFunc(); 
-		
-		//0 = 1; 
-		//break; 
 	}
 
 	var updateCameraAndShipPositionOnZAxis = function(){
-		//console.log(activeObstacles); 
-
 		//implements pause functionality 
-		//score +=1; 
-		scene.remove(scoreMesh); 
-		scene.add(scoreMesh);
-		//scene.add(ship); 
 		if (pause == 0) {
 			camera.position.z -= 1;
-
+			//camera.rotation.y = 90;
+			ship.position.z = ship.position.z;
 			backgroundMesh.position.z -= 1;
 			scoreMesh.position.z -= 1; 
-
-
+			livesMesh.position.z -= 1; 
+			//livesMesh.position.z -= 1; 
 			
-			if (mesh1 != null && ship.position.x < 75 && ship.position.x > -75 && ship.position.y > -5 && ship.position.y < 60)
+			if (mesh1 != null && ship.position.x < 60 && ship.position.x > -60 && ship.position.y > 0 && ship.position.y < 45)
 			{
 				console.log("enter");
 				scene.remove(mesh1); 
@@ -597,18 +550,11 @@ pauseFunc = function() {
 		}
 	};
 
-	var initializeBoundingBox = function(){
-		bbox = new THREE.BoundingBoxHelper(ship, hex);
-		//bbox = bbox.scale(.5,.5,.5); 
-
-	};
-
 	(function main(){
-		createScene();	
-		initializeBoundingBox();
-		//collisionDetector();
-		initializeSpaceship();
-		
+		createScene();
+		initializeCollisionDetector();
+		initializeSpaceship(); 
+		//draw();
 	})();
 
 };
@@ -622,13 +568,28 @@ function handleTextureLoaded(image, texture) {
   gl.bindTexture(gl.TEXTURE_2D, null);
 }
 
+function CollisionDetector(ship, terrainList, obstacleList){
+	this.ship = ship;
+	this.activeTerrainList = terrainList;
+	this.activeObstacleList = obstacleList;
+}
+
+CollisionDetector.prototype = {
+
+	detectCollision: function(){
+		return false;
+	}
+
+}
+
 function ObstacleGenerator(){
+	//this.activeObstacles = [];
 	this.obstacleGeometries = [new THREE.CylinderGeometry( 0, 30, 100, 4, 4 ), new THREE.CylinderGeometry( 0, 45, 50, 3, 4 )];
 	this.obstacleMaterials = [new THREE.MeshPhongMaterial({
 						color:0xffffff, 
 						map: THREE.ImageUtils.loadTexture( 'textures/pyramid2.jpg'),
 						bumpMap: THREE.ImageUtils.loadTexture('textures/sandBumpMap.jpg'),
-						bumpScale: 0.9
+						bumpScale: 0.5
 					}), 
 					new THREE.MeshPhongMaterial({
 						color:0xffffff, 
@@ -644,7 +605,7 @@ function ObstacleGenerator(){
 ObstacleGenerator.prototype = {
 	constructor: ObstacleGenerator,
 
-	generateObstacles: function(zCoordinateOfTile, deletePreviousObstacles){	 
+	generateObstacles: function(zCoordinateOfTile, destroyOlderObstacles){	 
 		obstacle = new THREE.Mesh(this.obstacleGeometries[0], this.obstacleMaterials[track]);
 
 		track++; 
@@ -664,24 +625,21 @@ ObstacleGenerator.prototype = {
 		obstacle.position.z = -zCoordinateOfTile;
 		obstacle2.position.z = -zCoordinateOfTile + 50;
 
+		if (destroyOlderObstacles){
+			activeObstacles.shift();
+			activeObstacles.shift();
+		}
 
-		activeObstacles.push(obstacle);
-
+	    activeObstacles.push(obstacle);
 	    activeObstacles.push(obstacle2);
 
-	    if (deletePreviousObstacles){
-	    	//console.log("this is getting called");
-	    	activeObstacles.shift(); 
-	    	activeObstacles.shift(); 
-	    }
-
-		scene.add(obstacle) 
+		scene.add(obstacle)
 		scene.add(obstacle2);
 	}
 }
 
 function RingGenerator(){
-	//this.activeRings = [];
+	this.activeRings = [];
 	this.ringGeometries = [new THREE.TorusGeometry( 10, 3, 100, 100)];
 	this.ringMaterials = [new THREE.MeshNormalMaterial()]
 }
@@ -689,7 +647,7 @@ function RingGenerator(){
 RingGenerator.prototype = {
 	constructor: RingGenerator , 
 
-	generateRings: function (zCoordinateOfTile, deletePreviousRings){
+	generateRings: function (zCoordinateOfTile){
 		if (Math.random() > .2)
 		{
 			var ringMaterial = new THREE.MeshPhongMaterial(
@@ -697,7 +655,7 @@ RingGenerator.prototype = {
 							color:0xffffff, 
 							map: THREE.ImageUtils.loadTexture( 'textures/ice.jpg' ), 
 							bumpMap: THREE.ImageUtils.loadTexture('textures/sandBumpMap.jpg'),
-							bumpScale: 0.3
+							bumpScale: 0.5
 						});
 		}
 		else
@@ -707,7 +665,7 @@ RingGenerator.prototype = {
 							color:0xffffff, 
 							map: THREE.ImageUtils.loadTexture( 'textures/fire.jpg' ), 
 							bumpMap: THREE.ImageUtils.loadTexture('textures/sandBumpMap.jpg'),
-							bumpScale: 0.3
+							bumpScale: 0.5
 						});
 		}
 
@@ -721,31 +679,17 @@ RingGenerator.prototype = {
 		ring.position.y = Math.random() * 33 + 20;
 		ring.position.z = -zCoordinateOfTile + 25;
 
-		var ringBox = new THREE.BoundingBoxHelper(ring, hex); 
 
-		//activeRingBoxes.push(ringBox);
-		activeRings.push(ring);
-
-		if (deletePreviousRings)
-		{
-			console.log("shifting"); 
-			//activeRingBoxes.shift();
-			activeRings.shift();  
-			//activeRings.shift(); 
-		}
-
+		this.activeRings.push(ring);
+	    this.activeRings.shift();
 
 		scene.add(ring);
-		//ringBox.scale.set(10,10,10); 
-		//ring.add(ringBox); 
-
-		//console.log(ringBox);
 	}
 }
 
 function TerrainGenerator(){
 	this.zRenderingPosition = 0;
-	this.activeTerrain = [];
+	//this.activeTerrain = [];
 	this.sizeOfTerrain = 100;
 	this.obstacleGenerator = new ObstacleGenerator();
 	this.ringGenerator = new RingGenerator(); 
@@ -773,10 +717,6 @@ TerrainGenerator.prototype = {
 	}, 
 
 	generateInitialTiles: function(){
-		//doesn't seem to affect performance, might as well leave it
-
-		this.generateNextTile(false);
-		this.generateNextTile(false);
 		this.generateNextTile(false);
 		this.generateNextTile(false);
 		this.generateNextTile(false);
@@ -785,11 +725,11 @@ TerrainGenerator.prototype = {
 		this.generateNextTile(false);
 	},
 
-	generateNextTileIfNeeded: function(shipPosition, deletePrevTiles){
+	generateNextTileIfNeeded: function(shipPosition){
 		//console.log(shipPosition); 
 
 		if (this.nextTileNeeded(shipPosition)){
-			this.generateNextTile(deletePrevTiles);
+			this.generateNextTile(true);
 		}
 	},
 
@@ -799,14 +739,13 @@ TerrainGenerator.prototype = {
 		}
 	},
 
-	generateNextTile: function(deletePrevTiles){
-		//console.log("check1");
+	generateNextTile: function(destroyOlderTiles){
 		//zpos = ship.position.z; 
 		//console.log(zpos); 
 		var START = -200;
 		var END = 200;
 
-	    // for (var i = START; i <= END; i+=100){
+	    for (var i = START; i <= END; i+=100){
 
 	    	var AT = this.getActiveTerrain();
 	    	var zPos = this.zRenderingPosition;
@@ -818,37 +757,36 @@ TerrainGenerator.prototype = {
 				// Function when resource is loaded
 				function (geometry) {
 
-
 					var material = new THREE.MeshPhongMaterial({
 						color:0xffffff, 
 						map: THREE.ImageUtils.loadTexture( 'textures/sand.jpg'),
 						bumpMap: THREE.ImageUtils.loadTexture('textures/sandBumpMap.jpg'),
-						bumpScale: 1.3
+						bumpScale: 0.5
 					});
 
 					var object1 = new THREE.Mesh(geometry, material);
 
 					object1.position.y = -150;
 					object1.position.z = -zPos-400;
-					//object1.position.x = i-400; // i - a random number between 0 and 200
-					object1.position.x = 0; 
-					//object1.position.x = i - (Math.random() * 400) + 100;
+					object1.position.x = i-400; // i - a random number between 0 and 200
+					object1.position.x = i - (Math.random() * 400) + 100;
 
 					object1.scale.set(100,100,100);
 
 					object1.rotation.y = (Math.floor(Math.random() * 4) + 1) * 90; 
 
-					AT.push(object1);
-					if (deletePrevTiles){
-						AT.shift();	
+					activeTerrain.push(object1);
+
+					if (destroyOlderTiles){
+						activeTerrain.shift();
 					}
-								
+					
 					scene.add(object1);
 				}
 			);
-	    //}
-	    this.obstacleGenerator.generateObstacles(this.zRenderingPosition, deletePrevTiles);
-	    this.ringGenerator.generateRings(this.zRenderingPosition, deletePrevTiles);
+	    }
+	    this.obstacleGenerator.generateObstacles(this.zRenderingPosition, destroyOlderTiles);
+	    this.ringGenerator.generateRings(this.zRenderingPosition);
 		this.zRenderingPosition += 100;
 	}
 }
@@ -884,67 +822,6 @@ Spaceship.prototype = {
 	},
 }
 
-var collisionDetector = function(){
-
-		var vertexIndex; 
-		
-		var originPoint = new THREE.Vector3();
-
-		originPoint.x = ship.position.x; 
-		originPoint.y = ship.position.y; 
-		originPoint.z = camera.position.z - 100; 
-
-		var originPoint2 = new THREE.Vector3(); 
-
-		originPoint2.x = ship.position.x; 
-		originPoint2.y = ship.position.y; 
-		originPoint2.z = camera.position.z - 75;
-		//console.log(activeRings);  
-
-		for (vertexIndex = 0; vertexIndex < rayTrack; vertexIndex++){       
-			//console.log(vertCount); 
-
-		    var localVertex = bbox.geometry.vertices[vertexIndex].clone();
-		    var globalVertex = localVertex.applyMatrix4(bbox.matrix); 
-		    var directionVector = globalVertex.sub(bbox.position);
-
-		    var ray = new THREE.Raycaster(originPoint2, directionVector.clone().normalize());
-
-		    // if (count5 < 10) {
-		    // 	console.log(activeObstacles[0].position); 
-		    // 	console.log(activeObstacles); 
-		    // 	count5++; 
-		    // }
-		    //console.log(activeRings[0]);
-		    var ringCollisionResults = ray.intersectObjects(activeRings);
-
-		 //    if (count5 < 100){
-		 //    	console.log(activeRings[0]); 
-		 //    	count5++; 
-			// }
-
-
-		    //console.log(activeRings[0].position); 
-		   	if (ringCollisionResults.length > 0 )//&& ringCollisionResults[0].distance < directionVector.length())
-		   	{
-		   		score++; 
-		   		console.log(score); 
-		   		ringCollisionResults = []; 
-		   		break; 
-		   	}
-
-		   	var ray2 = new THREE.Raycaster(originPoint, directionVector.clone().normalize());
-		   	//console.log(activeObstacles[0]); 
-		    var collisionResults = ray2.intersectObjects(activeObstacles);
-		    if (collisionResults.length > 0 && collisionResults[0].distance < directionVector.length()) 
-		    {
-				console.log("I'm doing something here"); 
-				endGame(); 
-		    }
-
-		    //return; 
-		}
-}
 
 
 
