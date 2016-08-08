@@ -134,7 +134,7 @@ var game = function(){
 		}
 	}); 
 
-
+//WebGL initialization
 	var createScene = function(){
 		//Scene
 		scene = new THREE.Scene();	
